@@ -12,10 +12,9 @@
   <script>
     window.addEventListener('DOMContentLoaded', function() {
       // Настрой свой Supabase
-      const supabase = supabase.createClient(
-        'https://tjspovgnqlmsgjdmvfnd.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3BvdmducWxtc2dqZG12Zm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyNDQwMTQsImV4cCI6MjA1OTgyMDAxNH0.l7VvqIl_tHvgslU9o4-7oqRxJFwzTXnZzUnMTGplz1E'
-      );
+      const { createClient } = supabase;
+      const supabaseClient = createClient('https://tjspovgnqlmsgjdmvfnd.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3BvdmducWxtc2dqZG12Zm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyNDQwMTQsImV4cCI6MjA1OTgyMDAxNH0.l7VvqIl_tHvgslU9o4-7oqRxJFwzTXnZzUnMTGplz1E');
+
 
       const user_id = '70172e4d-d1a2-4c48-bc4b-1234567890ab';
 
@@ -31,7 +30,7 @@
         const fileName = `${user_id}_${Date.now()}_${file.name}`;
         const storagePath = `user_images/${fileName}`;
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
           .storage
           .from('store01')
           .upload(storagePath, file, { upsert: false });
@@ -42,14 +41,14 @@
         }
 
         // Получаем publicUrl
-        const { data: urlData } = supabase
+        const { data: urlData } = supabaseClient
           .storage
           .from('store01')
           .getPublicUrl(storagePath);
         const publicUrl = urlData.publicUrl;
 
         // Запись в user_images
-        const { data: userImg, error: userImgErr } = await supabase
+        const { data: userImg, error: userImgErr } = await supabaseClient
           .from('user_images')
           .insert([{
             user_id,

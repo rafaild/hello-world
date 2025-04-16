@@ -11,6 +11,7 @@
   <div id="status"></div>
   <script>
     // Настрой свой Supabase
+    const { createClient } = supabase;
     const supabase = supabase.createClient(
       'https://tjspovgnqlmsgjdmvfnd.supabase.co',
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3BvdmducWxtc2dqZG12Zm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyNDQwMTQsImV4cCI6MjA1OTgyMDAxNH0.l7VvqIl_tHvgslU9o4-7oqRxJFwzTXnZzUnMTGplz1E'

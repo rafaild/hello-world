@@ -9,15 +9,36 @@
   <input type="file" id="fileInput" />
   <button id="uploadBtn">Загрузить</button>
   <div id="status"></div>
+  <div id="result"></div>
   <script>
-    const supabase = window.supabase.createClient('https://tjspovgnqlmsgjdmvfnd.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3BvdmducWxtc2dqZG12Zm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyNDQwMTQsImV4cCI6MjA1OTgyMDAxNH0.l7VvqIl_tHvgslU9o4-7oqRxJFwzTXnZzUnMTGplz1E');
+    const supabase = window.supabase.createClient(
+      'https://tjspovgnqlmsgjdmvfnd.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3BvdmducWxtc2dqZG12Zm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyNDQwMTQsImV4cCI6MjA1OTgyMDAxNH0.l7VvqIl_tHvgslU9o4-7oqRxJFwzTXnZzUnMTGplz1E'
+    );
     // demo user_id (реально получать с auth/или из url)
     const user_id = '70172e4d-d1a2-4c48-bc4b-1234567890ab';
     const shop_api_key = 'demo_test'; // сюда - твой API_KEY если есть
+
+    // Функция для отображения данных после загрузки
+    function showInfo({user_id, original_filename, changed_filename, storage_path}) {
+      const div = document.getElementById('result');
+      div.innerHTML = `
+        <b>Информация о загрузке:</b>
+        <ul>
+          <li><b>user_id:</b> ${user_id}</li>
+          <li><b>original_filename:</b> ${original_filename}</li>
+          <li><b>changed_filename:</b> ${changed_filename}</li>
+          <li><b>storage_path:</b> ${storage_path}</li>
+        </ul>
+      `;
+    }
     
     document.getElementById('uploadBtn').onclick = async () => {
       const fileInput = document.getElementById('fileInput');
       const status = document.getElementById('status');
+      const resultDiv = document.getElementById('result');
+      resultDiv.innerHTML = ""; // очистить предыдущий вывод
+
       if (!fileInput.files.length) {
         status.textContent = 'Выберите файл';
         return;
@@ -38,14 +59,22 @@
         return;
       }
 
-      // 2. Получаем publicUrl
+      // Показать данные сразу после загрузки
+      showInfo({
+        user_id: user_id,
+        original_filename: file.name,
+        changed_filename: fileName,
+        storage_path: storagePath
+      });
+
+      // 2. Получаем publicUrl (оставим для полноты)
       const { data: urlData } = supabase
         .storage
         .from('store01')
         .getPublicUrl(storagePath);
       const publicUrl = urlData.publicUrl;
 
-      // 3. Отправляем инфу в n8n
+      // 3. Отправляем инфу в n8n (будет CORS-ошибка, но это не мешает выводу)
       try {
         const response = await fetch('https://saylolsay23.app.n8n.cloud/webhook-test/register-upload', {
           method: 'POST',

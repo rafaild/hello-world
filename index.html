@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Upload в Supabase</title>
+  <title>Upload в Supabase: только storage</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -10,16 +10,16 @@
   <button id="uploadBtn">Загрузить</button>
   <div id="status"></div>
   <script>
-    // Настрой свой Supabase
     const { createClient } = supabase;
-    const supabase = supabase.createClient(
+    const supabase = createClient(
       'https://tjspovgnqlmsgjdmvfnd.supabase.co',
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3BvdmducWxtc2dqZG12Zm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyNDQwMTQsImV4cCI6MjA1OTgyMDAxNH0.l7VvqIl_tHvgslU9o4-7oqRxJFwzTXnZzUnMTGplz1E'
     );
 
     // demo user_id (реально получать с auth/или из url)
     const user_id = '70172e4d-d1a2-4c48-bc4b-1234567890ab';
-
+    const shop_api_key = 'abc123'; // сюда - твой API_KEY если есть
+    
     document.getElementById('uploadBtn').onclick = async () => {
       const fileInput = document.getElementById('fileInput');
       const status = document.getElementById('status');
@@ -28,11 +28,11 @@
         return;
       }
 
+      // 1. Загрузка файла в Storage
       const file = fileInput.files[0];
       const fileName = `${user_id}_${Date.now()}_${file.name}`;
       const storagePath = `user_images/${fileName}`;
 
-      // Загружаем в Supabase Storage
       const { data, error } = await supabase
         .storage
         .from('avatars')
@@ -43,31 +43,37 @@
         return;
       }
 
-      // Получаем publicUrl
+      // 2. Получаем publicUrl
       const { data: urlData } = supabase
         .storage
         .from('avatars')
         .getPublicUrl(storagePath);
       const publicUrl = urlData.publicUrl;
 
-      // Запись в user_images
-      const { data: userImg, error: userImgErr } = await supabase
-        .from('user_images')
-        .insert([{
-          user_id,
-          original_filename: file.name,
-          changed_filename: fileName,
-          storage_path: storagePath,
-          storage_url: publicUrl,
-          upload_date: new Date().toISOString(),
-          is_active: true
-        }])
-        .select();
+      // 3. Отправляем инфу в n8n
+      try {
+        const response = await fetch('https://<твой-n8n-домен>/webhook/register-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id,
+            original_filename: file.name,
+            changed_filename: fileName,
+            storage_path: storagePath,
+            shop_api_key,
+            storage_url: publicUrl // можно или не обязательно
+          })
+        });
 
-      if (userImgErr) {
-        status.textContent = 'Ошибка БД: ' + userImgErr.message;
-      } else {
-        status.textContent = "Успех! Ссылка на загруженное: " + publicUrl;
+        const res = await response.json();
+
+        if (!response.ok) {
+          status.textContent = 'Ошибка n8n: ' + (res.message || response.statusText);
+        } else {
+          status.textContent = 'Успех! user_image_id: ' + res.user_image_id;
+        }
+      } catch (e) {
+        status.textContent = 'Ошибка вызова n8n: ' + e.message;
       }
     }
   </script>

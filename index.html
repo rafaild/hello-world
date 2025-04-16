@@ -10,65 +10,65 @@
   <button id="uploadBtn">Загрузить</button>
   <div id="status"></div>
   <script>
-    // Настрой свой Supabase
-    const supabase = supabase.createClient(
-      'https://tjspovgnqlmsgjdmvfnd.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3BvdmducWxtc2dqZG12Zm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyNDQwMTQsImV4cCI6MjA1OTgyMDAxNH0.l7VvqIl_tHvgslU9o4-7oqRxJFwzTXnZzUnMTGplz1E'
-    );
+    window.addEventListener('DOMContentLoaded', function() {
+      // Настрой свой Supabase
+      const supabase = supabase.createClient(
+        'https://tjspovgnqlmsgjdmvfnd.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3BvdmducWxtc2dqZG12Zm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyNDQwMTQsImV4cCI6MjA1OTgyMDAxNH0.l7VvqIl_tHvgslU9o4-7oqRxJFwzTXnZzUnMTGplz1E'
+      );
 
-    // demo user_id (реально получать с auth/или из url)
-    const user_id = '70172e4d-d1a2-4c48-bc4b-1234567890ab';
+      const user_id = '70172e4d-d1a2-4c48-bc4b-1234567890ab';
 
-    document.getElementById('uploadBtn').onclick = async () => {
-      const fileInput = document.getElementById('fileInput');
-      const status = document.getElementById('status');
-      if (!fileInput.files.length) {
-        status.textContent = 'Выберите файл';
-        return;
+      document.getElementById('uploadBtn').onclick = async () => {
+        const fileInput = document.getElementById('fileInput');
+        const status = document.getElementById('status');
+        if (!fileInput.files.length) {
+          status.textContent = 'Выберите файл';
+          return;
+        }
+
+        const file = fileInput.files[0];
+        const fileName = `${user_id}_${Date.now()}_${file.name}`;
+        const storagePath = `user_images/${fileName}`;
+
+        const { data, error } = await supabase
+          .storage
+          .from('store01')
+          .upload(storagePath, file, { upsert: false });
+
+        if (error) {
+          status.textContent = 'Ошибка Storage: ' + error.message;
+          return;
+        }
+
+        // Получаем publicUrl
+        const { data: urlData } = supabase
+          .storage
+          .from('store01')
+          .getPublicUrl(storagePath);
+        const publicUrl = urlData.publicUrl;
+
+        // Запись в user_images
+        const { data: userImg, error: userImgErr } = await supabase
+          .from('user_images')
+          .insert([{
+            user_id,
+            original_filename: file.name,
+            changed_filename: fileName,
+            storage_path: storagePath,
+            storage_url: publicUrl,
+            upload_date: new Date().toISOString(),
+            is_active: true
+          }])
+          .select();
+
+        if (userImgErr) {
+          status.textContent = 'Ошибка БД: ' + userImgErr.message;
+        } else {
+          status.textContent = "Успех! Ссылка на загруженное: " + publicUrl;
+        }
       }
-
-      const file = fileInput.files[0];
-      const fileName = `${user_id}_${Date.now()}_${file.name}`;
-      const storagePath = `user_images/${fileName}`;
-
-      // Загружаем в Supabase Storage
-      const { data, error } = await supabase
-        .storage
-        .from('store01')
-        .upload(storagePath, file, { upsert: false });
-
-      if (error) {
-        status.textContent = 'Ошибка Storage: ' + error.message;
-        return;
-      }
-
-      // Получаем publicUrl
-      const { data: urlData } = supabase
-        .storage
-        .from('store01')
-        .getPublicUrl(storagePath);
-      const publicUrl = urlData.publicUrl;
-
-      // Запись в user_images
-      const { data: userImg, error: userImgErr } = await supabase
-        .from('user_images')
-        .insert([{
-          user_id,
-          original_filename: file.name,
-          changed_filename: fileName,
-          storage_path: storagePath,
-          storage_url: publicUrl,
-          upload_date: new Date().toISOString(),
-          is_active: true
-        }])
-        .select();
-
-      if (userImgErr) {
-        status.textContent = 'Ошибка БД: ' + userImgErr.message;
-      } else {
-        status.textContent = "Успех! Ссылка на загруженное: " + publicUrl;
-      }
-    }
+    });
   </script>
 </body>
 </html>

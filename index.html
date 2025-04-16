@@ -2,72 +2,104 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Upload в Supabase</title>
+  <title>Upload в Supabase - новый подход</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <input type="file" id="fileInput" />
   <button id="uploadBtn">Загрузить</button>
   <div id="status"></div>
+  <div id="preview"></div>
   <script>
-    window.addEventListener('DOMContentLoaded', function() {
-      // Настрой свой Supabase
-      const { createClient } = supabase;
-      const supabaseClient = createClient('https://tjspovgnqlmsgjdmvfnd.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3BvdmducWxtc2dqZG12Zm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyNDQwMTQsImV4cCI6MjA1OTgyMDAxNH0.l7VvqIl_tHvgslU9o4-7oqRxJFwzTXnZzUnMTGplz1E');
+    // --- КОНФИГ ---
+    const { createClient } = supabase;
+    const SUPABASE_URL = 'https://tjspovgnqlmsgjdmvfnd.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3BvdmducWxtc2dqZG12Zm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyNDQwMTQsImV4cCI6MjA1OTgyMDAxNH0.l7VvqIl_tHvgslU9o4-7oqRxJFwzTXnZzUnMTGplz1E'; // ANON KEY
+    const BUCKET = 'store01';
 
+    // Для примера, user_id вынесен отдельно
+    const USER_ID = '70172e4d-d1a2-4c48-bc4b-1234567890ab';
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-      const user_id = '5eca9a00-58fb-4965-89ff-5de8e8b822b0';
+    /** Загрузка файла в Storage */
+    async function uploadFile(file, userId = USER_ID) {
+      const fileName = `${userId}_${Date.now()}_${file.name}`;
+      const storagePath = `user_images/${fileName}`;
+      const { data, error } = await supabaseClient
+        .storage
+        .from(BUCKET)
+        .upload(storagePath, file, { upsert: false });
 
-      document.getElementById('uploadBtn').onclick = async () => {
-        const fileInput = document.getElementById('fileInput');
-        const status = document.getElementById('status');
-        if (!fileInput.files.length) {
-          status.textContent = 'Выберите файл';
-          return;
-        }
+      if (error) throw new Error('Ошибка Storage: ' + error.message);
+      return storagePath;
+    }
 
-        const file = fileInput.files[0];
-        const fileName = `${user_id}_${Date.now()}_${file.name}`;
-        const storagePath = `user_images/${fileName}`;
+    /** Получение публичного URL файла в Storage */
+    function getPublicUrl(storagePath) {
+      const { data } = supabaseClient
+        .storage
+        .from(BUCKET)
+        .getPublicUrl(storagePath);
+      return data.publicUrl;
+    }
 
-        const { data, error } = await supabaseClient
-          .storage
-          .from('store01')
-          .upload(storagePath, file, { upsert: false });
-
-        if (error) {
-          status.textContent = 'Ошибка Storage: ' + error.message;
-          return;
-        }
-
-        // Получаем publicUrl
-        const { data: urlData } = supabaseClient
-          .storage
-          .from('store01')
-          .getPublicUrl(storagePath);
-        const publicUrl = urlData.publicUrl;
-
-        // Запись в user_images
-        const { data: userImg, error: userImgErr } = await supabaseClient
-          .from('user_images')
-          .insert([{
+    /** Вставка записи в БД user_images */
+    async function insertImageRow({ user_id, original_filename, changed_filename, storage_path, storage_url }) {
+      const { error } = await supabaseClient
+        .from('user_images')
+        .insert([
+          {
             user_id,
-            original_filename: file.name,
-            changed_filename: fileName,
-            storage_path: storagePath,
-            storage_url: publicUrl,
+            original_filename,
+            changed_filename,
+            storage_path,
+            storage_url,
             upload_date: new Date().toISOString(),
             is_active: true
-          }])
-          .select();
+          }
+        ]);
+      if (error) throw new Error('Ошибка БД: ' + error.message);
+    }
 
-        if (userImgErr) {
-          status.textContent = 'Ошибка БД: ' + userImgErr.message;
-        } else {
-          status.textContent = "Успех! Ссылка на загруженное: " + publicUrl;
-        }
+    /** Главная функция загрузки и записи */
+    async function handleUpload() {
+      const fileInput = document.getElementById('fileInput');
+      const status = document.getElementById('status');
+      const preview = document.getElementById('preview');
+      preview.innerHTML = '';
+      if (!fileInput.files.length) {
+        status.textContent = 'Выберите файл!';
+        return;
       }
-    });
+
+      try {
+        status.textContent = 'Загрузка...';
+        const file = fileInput.files[0];
+
+        // 1. upload в Storage
+        const storagePath = await uploadFile(file);
+
+        // 2. получить publicUrl
+        const publicUrl = getPublicUrl(storagePath);
+
+        // 3. сделать запись в user_images
+        await insertImageRow({
+          user_id: USER_ID,
+          original_filename: file.name,
+          changed_filename: storagePath.split('/').pop(),
+          storage_path: storagePath,
+          storage_url: publicUrl
+        });
+
+        // 4. показать успешный результат
+        status.textContent = 'Успех! Ссылка: ' + publicUrl;
+        preview.innerHTML = `<img src="${publicUrl}" style="max-width:300px;max-height:150px;">`;
+      } catch (e) {
+        status.textContent = e.message;
+      }
+    }
+
+    document.getElementById('uploadBtn').onclick = handleUpload;
   </script>
 </body>
 </html>

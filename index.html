@@ -11,7 +11,7 @@
   <div id="status"></div>
   <script>
     const { createClient } = supabase;
-    const supabase = window.supabase.createClient('https://tjspovgnqlmsgjdmvfnd.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3BvdmducWxtc2dqZG12Zm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyNDQwMTQsImV4cCI6MjA1OTgyMDAxNH0.l7VvqIl_tHvgslU9o4-7oqRxJFwzTXnZzUnMTGplz1E');
+    const supabase = window.supabase.createClient('https://tjspovgnqlmsgjdmvfnd.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3BvdmducWxtc2dqZG12Zm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyNDQwMTQsImV4cCI6MjA1OTgyMDAxNH0.l7VvqIl_tHvgslU9o4-7oqRxJFwzTXnZzUnMTGplz1E');
     // demo user_id (реально получать с auth/или из url)
     const user_id = '70172e4d-d1a2-4c48-bc4b-1234567890ab';
     const shop_api_key = 'demo_test'; // сюда - твой API_KEY если есть
@@ -48,7 +48,7 @@
 
       // 3. Отправляем инфу в n8n
       try {
-        const response = await fetch('https://<твой-n8n-домен>/webhook/register-upload', {
+        const response = await fetch('https://saylolsay23.app.n8n.cloud/webhook-test/register-upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

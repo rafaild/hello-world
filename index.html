@@ -2,104 +2,73 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Upload в Supabase - новый подход</title>
+  <title>Upload в Supabase</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <input type="file" id="fileInput" />
   <button id="uploadBtn">Загрузить</button>
   <div id="status"></div>
-  <div id="preview"></div>
   <script>
-    // --- КОНФИГ ---
-    const { createClient } = supabase;
-    const SUPABASE_URL = 'https://tjspovgnqlmsgjdmvfnd.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3BvdmducWxtc2dqZG12Zm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyNDQwMTQsImV4cCI6MjA1OTgyMDAxNH0.l7VvqIl_tHvgslU9o4-7oqRxJFwzTXnZzUnMTGplz1E'; // ANON KEY
-    const BUCKET = 'store01';
+    // Настрой свой Supabase
+    const supabase = supabase.createClient(
+      'https://ВАШ_PROJECT.supabase.co',
+      'ВАШ_anon_KEY'
+    );
 
-    // Для примера, user_id вынесен отдельно
-    const USER_ID = '70172e4d-d1a2-4c48-bc4b-1234567890ab';
-    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+    // demo user_id (реально получать с auth/или из url)
+    const user_id = 'user-demo-id-1';
 
-    /** Загрузка файла в Storage */
-    async function uploadFile(file, userId = USER_ID) {
-      const fileName = `${userId}_${Date.now()}_${file.name}`;
-      const storagePath = `user_images/${fileName}`;
-      const { data, error } = await supabaseClient
-        .storage
-        .from(BUCKET)
-        .upload(storagePath, file, { upsert: false });
-
-      if (error) throw new Error('Ошибка Storage: ' + error.message);
-      return storagePath;
-    }
-
-    /** Получение публичного URL файла в Storage */
-    function getPublicUrl(storagePath) {
-      const { data } = supabaseClient
-        .storage
-        .from(BUCKET)
-        .getPublicUrl(storagePath);
-      return data.publicUrl;
-    }
-
-    /** Вставка записи в БД user_images */
-    async function insertImageRow({ user_id, original_filename, changed_filename, storage_path, storage_url }) {
-      const { error } = await supabaseClient
-        .from('user_images')
-        .insert([
-          {
-            user_id,
-            original_filename,
-            changed_filename,
-            storage_path,
-            storage_url,
-            upload_date: new Date().toISOString(),
-            is_active: true
-          }
-        ]);
-      if (error) throw new Error('Ошибка БД: ' + error.message);
-    }
-
-    /** Главная функция загрузки и записи */
-    async function handleUpload() {
+    document.getElementById('uploadBtn').onclick = async () => {
       const fileInput = document.getElementById('fileInput');
       const status = document.getElementById('status');
-      const preview = document.getElementById('preview');
-      preview.innerHTML = '';
       if (!fileInput.files.length) {
-        status.textContent = 'Выберите файл!';
+        status.textContent = 'Выберите файл';
         return;
       }
 
-      try {
-        status.textContent = 'Загрузка...';
-        const file = fileInput.files[0];
+      const file = fileInput.files[0];
+      const fileName = `${user_id}_${Date.now()}_${file.name}`;
+      const storagePath = `user_images/${fileName}`;
 
-        // 1. upload в Storage
-        const storagePath = await uploadFile(file);
+      // Загружаем в Supabase Storage
+      const { data, error } = await supabase
+        .storage
+        .from('avatars')
+        .upload(storagePath, file, { upsert: false });
 
-        // 2. получить publicUrl
-        const publicUrl = getPublicUrl(storagePath);
+      if (error) {
+        status.textContent = 'Ошибка Storage: ' + error.message;
+        return;
+      }
 
-        // 3. сделать запись в user_images
-        await insertImageRow({
-          user_id: USER_ID,
+      // Получаем publicUrl
+      const { data: urlData } = supabase
+        .storage
+        .from('avatars')
+        .getPublicUrl(storagePath);
+      const publicUrl = urlData.publicUrl;
+
+      // Запись в user_images
+      const { data: userImg, error: userImgErr } = await supabase
+        .from('user_images')
+        .insert([{
+          user_id,
           original_filename: file.name,
-          changed_filename: storagePath.split('/').pop(),
+          changed_filename: fileName,
           storage_path: storagePath,
-          storage_url: publicUrl
-        });
+          storage_url: publicUrl,
+          upload_date: new Date().toISOString(),
+          is_active: true
+        }])
+        .select();
 
-        // 4. показать успешный результат
-        status.textContent = 'Успех! Ссылка: ' + publicUrl;
-        preview.innerHTML = `<img src="${publicUrl}" style="max-width:300px;max-height:150px;">`;
-      } catch (e) {
-        status.textContent = e.message;
+      if (userImgErr) {
+        status.textContent = 'Ошибка БД: ' + userImgErr.message;
+      } else {
+        status.textContent = "Успех! Ссылка на загруженное: " + publicUrl;
       }
     }
-
-    document.getElementById('uploadBtn').onclick = handleUpload;
   </script>
 </body>
 </html>

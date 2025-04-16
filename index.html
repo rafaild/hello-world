@@ -30,7 +30,7 @@
 
       const { data, error } = await supabase
         .storage
-        .from('avatars')
+        .from('store01')
         .upload(storagePath, file, { upsert: false });
 
       if (error) {
@@ -41,7 +41,7 @@
       // 2. Получаем publicUrl
       const { data: urlData } = supabase
         .storage
-        .from('avatars')
+        .from('store01')
         .getPublicUrl(storagePath);
       const publicUrl = urlData.publicUrl;
 

@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8"/>
-  <title>Upload + register-upload</title>
+  <title>Upload → register-upload (тест без webhook)</title>
   <style>
     body { font-family: sans-serif; padding: 1rem; }
     #status { margin: .5rem 0; color: darkred; }
@@ -11,7 +11,7 @@
   </style>
 </head>
 <body>
-  <h1>Upload → register-upload (n8n)</h1>
+  <h1>Тест: загрузка в Storage без вызова webhook</h1>
 
   <label>
     User ID:<br/>
@@ -23,12 +23,11 @@
 
   <div id="status"></div>
 
-  <h2>Результат (payload + ответ n8n):</h2>
+  <h2>Результат (payload + тестовый user_image_id):</h2>
   <pre id="response">–</pre>
 
-  <!-- вот тут импортируем ESM‑модуль supabase-js -->
   <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
     // ваши креды
     const SUPABASE_URL      = 'https://tjspovgnqlmsgjdmvfnd.supabase.co';
@@ -36,10 +35,6 @@
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // ваши n8n‑вебхук
-    const N8N_URL = 'https://saylolsay23.app.n8n.cloud/webhook-test/register-upload';
-
-    // элементы
     const userIdInput = document.getElementById('userIdInput');
     const fileInput   = document.getElementById('fileInput');
     const uploadBtn   = document.getElementById('uploadBtn');
@@ -65,14 +60,14 @@
       const storage_path     = `user_images/${changed_filename}`;
 
       try {
-        // 1) Upload в Supabase Storage
-        const { data: uploadData, error: uploadErr } = await supabase
+        // Upload в Supabase Storage
+        const { error: uploadErr } = await supabase
           .storage
           .from('store01')
           .upload(storage_path, file, { upsert: false });
         if (uploadErr) throw uploadErr;
 
-        // 2) Получаем publicUrl
+        // Получаем publicUrl
         const { data: urlData, error: urlErr } = await supabase
           .storage
           .from('store01')
@@ -80,7 +75,7 @@
         if (urlErr) throw urlErr;
         const storage_url = urlData.publicUrl;
 
-        // 3) Формируем payload
+        // Собираем payload
         const payload = {
           user_id,
           original_filename: file.name,
@@ -89,20 +84,17 @@
           storage_url
         };
 
-        // 4) POST в n8n
-        const resp = await fetch(N8N_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const json = await resp.json();
-        if (!resp.ok) {
-          throw new Error(json.message || JSON.stringify(json));
-        }
+        // === ВАЖНО ===
+        // Здесь мы бы делали fetch(N8N_URL,…), но ваш webhook сейчас не работает.
+        // Вместо этого просто добавим тестовый user_image_id:
 
-        // 5) Выводим объединённый JSON
-        const out = { ...payload, ...json };
-        responsePre.textContent = JSON.stringify(out, null, 2);
+        const result = {
+          ...payload,
+          user_image_id: 'DUMMY_ID'  // <-- тестовое значение
+        };
+
+        // Выводим в <pre>
+        responsePre.textContent = JSON.stringify(result, null, 2);
 
       } catch (err) {
         console.error(err);

@@ -2,123 +2,121 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8"/>
-  <title>Пример upload + register-upload</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <title>Upload + register-upload</title>
+
+  <!-- 1) Сначала подключаем UMD‑бандл Supabase v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/index.min.js"></script>
+
   <style>
     body { font-family: sans-serif; padding: 1rem; }
-    #status { margin-top: 1rem; color: darkred; }
-    pre { background: #f4f4f4; padding: .5rem; }
+    #status { margin-top: .5rem; color: darkred; }
+    pre { background: #f4f4f4; padding: .5rem; white-space: pre-wrap; }
+    input, button { margin: .5rem 0; display: block; }
   </style>
 </head>
 <body>
-  <h1>Загрузить фото пользователя</h1>
+  <h1>Upload в Storage → register-upload (n8n)</h1>
 
-  <!-- Введите ваш user_id (или получите его из localStorage) -->
-  <label>
-    User ID:
-    <input type="text" id="userIdInput" placeholder="вставьте user_id" style="width: 300px"/>
+  <!-- вводим user_id вручную (или подтягиваем из localStorage) -->
+  <label>User ID:<br>
+    <input type="text" id="userIdInput" placeholder="вставьте user_id" size="40"/>
   </label>
-  <br/><br/>
 
-  <!-- Выберите файл и нажмите "Загрузить" -->
+  <!-- выбор файла -->
   <input type="file" id="fileInput" accept="image/*"/>
-  <button id="uploadBtn">Загрузить → register-upload</button>
+  <button id="uploadBtn">Загрузить фото</button>
 
   <div id="status"></div>
 
-  <h2>Ответ от n8n + данные upload:</h2>
-  <pre id="response">здесь будет JSON</pre>
+  <h2>Результат (payload + ответ n8n):</h2>
+  <pre id="response">–</pre>
 
   <script>
     (function(){
-      // 1) Инициализируем Supabase client
-      const { createClient } = window.supabase
-      const supabaseClient = createClient(
-        'https://tjspovgnqlmsgjdmvfnd.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3BvdmducWxtc2dqZG12Zm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyNDQwMTQsImV4cCI6MjA1OTgyMDAxNH0.l7VvqIl_tHvgslU9o4-7oqRxJFwzTXnZzUnMTGplz1E'
-      );
+      // 2) Инициализация клиента Supabase. Не затираем window.supabase!
+      const SUPABASE_URL      = 'https://tjspovgnqlmsgjdmvfnd.supabase.co';
+      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3BvdmducWxtc2dqZG12Zm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyNDQwMTQsImV4cCI6MjA1OTgyMDAxNH0.l7VvqIl_tHvgslU9o4-7oqRxJFwzTXnZzUnMTGplz1E';
+      // из глобальной window.supabase забираем метод createClient
+      const { createClient }  = window.supabase;
+      const supabaseClient    = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-      const shop_api_key = 'demo_test';  // или ваш реальный
-
-      const statusDiv   = document.getElementById('status');
-      const responsePre = document.getElementById('response');
+      // 3) Получаем элементы страницы
+      const userIdInput = document.getElementById('userIdInput');
       const fileInput   = document.getElementById('fileInput');
       const uploadBtn   = document.getElementById('uploadBtn');
-      const userIdInput = document.getElementById('userIdInput');
+      const statusDiv   = document.getElementById('status');
+      const responsePre = document.getElementById('response');
 
-      uploadBtn.onclick = async () => {
+      // 4) Ваш URL вебхука n8n
+      const N8N_URL = 'https://saylolsay23.app.n8n.cloud/webhook-test/register-upload';
+
+      uploadBtn.addEventListener('click', async () => {
         statusDiv.textContent = '';
         responsePre.textContent = '';
 
+        // Проверяем user_id
         const user_id = userIdInput.value.trim();
         if (!user_id) {
           statusDiv.textContent = 'Error: укажите user_id';
           return;
         }
 
+        // Проверяем, что файл выбран
         if (!fileInput.files.length) {
           statusDiv.textContent = 'Error: выберите файл';
           return;
         }
 
-        // 2) Формируем имена
+        // 5) Готовим payload
         const file = fileInput.files[0];
-        // чтобы не было коллизий, добавляем timestamp и user_id
         const changed_filename = `${user_id}_${Date.now()}_${file.name}`;
         const storage_path     = `user_images/${changed_filename}`;
 
         try {
-          // 3) Upload в Supabase Storage
-          const { data: uploadData, error: uploadErr } = await supabase
+          // 6) Upload в Supabase Storage
+          const { data: uploadData, error: uploadErr } = await supabaseClient
             .storage
             .from('store01')
-            .upload(storage_path, file);
-
+            .upload(storage_path, file, { upsert: false });
           if (uploadErr) throw uploadErr;
 
-          // 4) Получаем publicUrl
-          const { data: urlData, error: urlErr } = supabase
+          // 7) Получаем publicUrl
+          const { data: urlData, error: urlErr } = await supabaseClient
             .storage
             .from('store01')
             .getPublicUrl(storage_path);
           if (urlErr) throw urlErr;
-
           const storage_url = urlData.publicUrl;
 
-          // 5) Собираем payload для n8n
+          // 8) Собираем объект для отправки в n8n
           const payload = {
             user_id,
             original_filename: file.name,
             changed_filename,
             storage_path,
-            storage_url,
-            shop_api_key
+            storage_url
           };
 
-          // 6) POST в n8n
-          const res = await fetch('https://saylolsay23.app.n8n.cloud/webhook-test/register-upload', {
+          // 9) Отправляем на ваш webhook n8n
+          const resp = await fetch(N8N_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
-
-          const json = await res.json();
-          if (!res.ok) {
+          const json = await resp.json();
+          if (!resp.ok) {
             throw new Error(json.message || JSON.stringify(json));
           }
 
-          // 7) Выводим на экран полный JSON (payload + ответ n8n)
-          const out = {
-            ...payload,
-            ...json
-          };
-          responsePre.textContent = JSON.stringify(out, null, 2);
+          // 10) Выводим на страницу объединённый результат
+          const result = { ...payload, ...json };
+          responsePre.textContent = JSON.stringify(result, null, 2);
 
         } catch (err) {
           console.error(err);
           statusDiv.textContent = 'Ошибка: ' + err.message;
         }
-      };
+      });
     })();
   </script>
 </body>

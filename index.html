@@ -32,7 +32,8 @@
   <script>
     (function(){
       // 1) Инициализируем Supabase client
-      const supabase = supabase.createClient(
+      const { createClient } = window.supabase
+      const supabaseClient = createClient(
         'https://tjspovgnqlmsgjdmvfnd.supabase.co',
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqc3BvdmducWxtc2dqZG12Zm5kIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyNDQwMTQsImV4cCI6MjA1OTgyMDAxNH0.l7VvqIl_tHvgslU9o4-7oqRxJFwzTXnZzUnMTGplz1E'
       );
@@ -95,7 +96,7 @@
           };
 
           // 6) POST в n8n
-          const res = await fetch('https://<YOUR‑N8N‑DOMAIN>/webhook/register-upload', {
+          const res = await fetch('https://saylolsay23.app.n8n.cloud/webhook-test/register-upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
